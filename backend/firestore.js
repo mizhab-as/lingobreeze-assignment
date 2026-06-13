@@ -42,4 +42,9 @@ async function addWordToFirestore(entry) {
   return { id: doc.id, ...doc.data() };
 }
 
-module.exports = { initFirestore, getWordsFromFirestore, addWordToFirestore };
+async function deleteWordFromFirestore(id) {
+  if (!db) throw new Error('Firestore not initialized');
+  await db.collection('words').doc(id).delete();
+}
+
+module.exports = { initFirestore, getWordsFromFirestore, addWordToFirestore, deleteWordFromFirestore };

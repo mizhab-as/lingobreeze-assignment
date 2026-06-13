@@ -1,30 +1,107 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:lingo_breeze/features/vocabulary/domain/entities/word.dart';
+import 'package:lingo_breeze/features/vocabulary/domain/repositories/word_repository.dart';
+import 'package:lingo_breeze/features/vocabulary/domain/usecases/add_word.dart';
+import 'package:lingo_breeze/features/vocabulary/domain/usecases/get_words.dart';
+import 'package:lingo_breeze/features/vocabulary/domain/usecases/delete_word.dart';
+import 'package:lingo_breeze/features/vocabulary/presentation/pages/vocabulary_screen.dart';
+import 'package:lingo_breeze/features/vocabulary/presentation/providers/words_provider.dart';
 
-import 'package:lingo_breeze/main.dart';
+class FakeWordRepository implements WordRepository {
+  @override
+  Future<Word> addWord(String word, String meaning, String translation) async {
+    return Word(id: '1', word: word, meaning: meaning, translation: translation);
+  }
+
+  @override
+  Future<List<Word>> getWords() async {
+    return [
+      const Word(id: '1', word: 'Apple', meaning: 'A fruit', translation: 'Manzana'),
+    ];
+  }
+
+  @override
+  Future<void> deleteWord(String id) async {}
+}
+
+class FakeEmptyWordRepository implements WordRepository {
+  @override
+  Future<Word> addWord(String word, String meaning, String translation) async {
+    return Word(id: '1', word: word, meaning: meaning, translation: translation);
+  }
+
+  @override
+  Future<List<Word>> getWords() async {
+    return [];
+  }
+
+  @override
+  Future<void> deleteWord(String id) async {}
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('VocabularyScreen Widget Tests', () {
+    testWidgets('displays empty state when no words exist', (WidgetTester tester) async {
+      // Arrange
+      final repo = FakeEmptyWordRepository();
+      final getWords = GetWords(repo);
+      final addWord = AddWord(repo);
+      final deleteWord = DeleteWord(repo);
+      
+      final provider = WordsProvider(
+        getWordsUseCase: getWords,
+        addWordUseCase: addWord,
+        deleteWordUseCase: deleteWord,
+      );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // Act
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<WordsProvider>.value(
+            value: provider..fetchWords(),
+            child: const VocabularyScreen(),
+          ),
+        ),
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      await tester.pump(); // Trigger fetch completed state
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      // Assert
+      expect(find.text("You haven't saved any words yet."), findsOneWidget);
+      expect(find.text("Add Your First Word"), findsOneWidget);
+    });
+
+    testWidgets('displays word list when words exist', (WidgetTester tester) async {
+      // Arrange
+      final repo = FakeWordRepository();
+      final getWords = GetWords(repo);
+      final addWord = AddWord(repo);
+      final deleteWord = DeleteWord(repo);
+      
+      final provider = WordsProvider(
+        getWordsUseCase: getWords,
+        addWordUseCase: addWord,
+        deleteWordUseCase: deleteWord,
+      );
+
+      // Act
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<WordsProvider>.value(
+            value: provider..fetchWords(),
+            child: const VocabularyScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump(); // Trigger fetch completed state
+
+      // Assert
+      expect(find.text('Apple'), findsOneWidget);
+      expect(find.text('A fruit'), findsOneWidget);
+      expect(find.text('Manzana'), findsOneWidget);
+    });
   });
 }
